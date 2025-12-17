@@ -1,0 +1,114 @@
+# 🎬 Movie Genre Classifier (Student Edition)
+# Goal: Teach a computer to guess movie genres from plot summaries!
+# Tools: TF-IDF (turn words into numbers) + ML models (Logistic Regression, Naive Bayes, SVM)
+# Dataset: CSV file with 'plot' and 'genre' columns
+
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ML magic from scikit-learn ✨
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+
+# Models we can play with 🧠
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import LinearSVC
+
+# -------------------------------
+# 1. Load the dataset 📂
+# -------------------------------
+CSV_PATH = "movies.csv"   # <- put your dataset file here
+df = pd.read_csv(CSV_PATH)
+
+# Quick check: do we have the right columns?
+assert {"plot", "genre"}.issubset(df.columns), "CSV must have 'plot' and 'genre' columns!"
+df.dropna(subset=["plot", "genre"], inplace=True)
+
+# -------------------------------
+# 2. Clean the text 🧹
+# -------------------------------
+def clean_text(text):
+    text = text.lower()                          # make everything lowercase
+    text = re.sub(r"[^a-z0-9\s]", " ", text)     # remove punctuation
+    text = re.sub(r"\s+", " ", text).strip()     # remove extra spaces
+    return text
+
+df["plot_clean"] = df["plot"].astype(str).apply(clean_text)
+
+# -------------------------------
+# 3. Encode genres 🔢
+# -------------------------------
+le = LabelEncoder()
+df["genre_id"] = le.fit_transform(df["genre"])
+genre_names = le.classes_
+
+X = df["plot_clean"].values
+y = df["genre_id"].values
+
+# Split into train and test sets (80/20 split)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# -------------------------------
+# 4. Pick a model 🧑‍🎓
+# -------------------------------
+# Try one at a time by uncommenting:
+model = LogisticRegression(max_iter=200, C=2.0)   # reliable choice
+# model = MultinomialNB(alpha=0.5)                # fast baseline
+# model = LinearSVC(C=1.0)                        # strong performer
+
+# -------------------------------
+# 5. Build the pipeline 🛠️
+# -------------------------------
+pipeline = Pipeline([
+    ("tfidf", TfidfVectorizer(
+        ngram_range=(1, 2),        # use single words + pairs
+        min_df=2,                  # ignore super rare words
+        max_df=0.95,               # ignore super common words
+        sublinear_tf=True,         # log scale for term frequency
+        stop_words="english"       # remove boring words like "the", "is"
+    )),
+    ("clf", model)
+])
+
+# -------------------------------
+# 6. Train the model 🏋️
+# -------------------------------
+pipeline.fit(X_train, y_train)
+
+# -------------------------------
+# 7. Evaluate the model 📊
+# -------------------------------
+y_pred = pipeline.predict(X_test)
+
+print("\n📋 Classification Report:")
+print(classification_report(y_test, y_pred, target_names=genre_names))
+
+# Confusion matrix (like a scoreboard of mistakes)
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(10, 8))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=genre_names, yticklabels=genre_names)
+plt.xlabel("Predicted Genre")
+plt.ylabel("Actual Genre")
+plt.title("🎯 Confusion Matrix")
+plt.show()
+
+# -------------------------------
+# 8. Try it yourself 🎥
+# -------------------------------
+def predict_genre(plot_text):
+    cleaned = clean_text(plot_text)
+    genre_id = pipeline.predict([cleaned])[0]
+    return le.inverse_transform([genre_id])[0]
+
+# Example test
+sample_plot = "A young wizard discovers his magical powers and attends a school of witchcraft."
+print("🧙 Predicted genre:", predict_genre(sample_plot))
