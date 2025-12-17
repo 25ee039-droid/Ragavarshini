@@ -1,0 +1,90 @@
+# 💳 Credit Card Fraud Detection — Student Edition
+# Mission: Teach a computer to spot fraud vs legit transactions!
+# We'll try Logistic Regression, Decision Tree, and Random Forest — pick one and play around 🎮
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# ML tools from scikit-learn 🧠
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+
+# -------------------------------
+# 1. Load the dataset 📂
+# -------------------------------
+CSV_PATH = "creditcard.csv"   # <- put your dataset file here
+df = pd.read_csv(CSV_PATH)
+
+# Peek at the data
+print("🔍 Dataset shape:", df.shape)
+print("🧾 Fraud vs Legit counts:\n", df["Class"].value_counts())
+
+# Optional: visualize class imbalance
+sns.countplot(x="Class", data=df)
+plt.title("Fraud vs Legit Transactions")
+plt.xlabel("Class (0 = Legit, 1 = Fraud)")
+plt.ylabel("Count")
+plt.show()
+
+# -------------------------------
+# 2. Prepare the data 🧹
+# -------------------------------
+# Separate features and target
+X = df.drop("Class", axis=1)
+y = df["Class"]
+
+# Scale features (important for Logistic Regression)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split into train/test sets (80/20 split)
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# -------------------------------
+# 3. Pick your model 🧑‍🎓
+# -------------------------------
+# Try one at a time by uncommenting:
+model = LogisticRegression(max_iter=200)              # Simple and fast
+# model = DecisionTreeClassifier(max_depth=5)         # Easy to explain
+# model = RandomForestClassifier(n_estimators=100)    # Strong and flexible
+
+# -------------------------------
+# 4. Train the model 🏋️
+# -------------------------------
+model.fit(X_train, y_train)
+
+# -------------------------------
+# 5. Evaluate the model 📊
+# -------------------------------
+y_pred = model.predict(X_test)
+
+print("\n📋 Classification Report:")
+print(classification_report(y_test, y_pred, digits=3))
+
+# Confusion matrix = who got confused with whom
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("🎯 Confusion Matrix")
+plt.show()
+
+# -------------------------------
+# 6. Try predicting a transaction 💡
+# -------------------------------
+def predict_transaction(features):
+    scaled = scaler.transform([features])
+    result = model.predict(scaled)[0]
+    return "⚠️ Fraud" if result == 1 else "✅ Legit"
+
+# Example (use real values from your dataset!)
+# sample = df.drop("Class", axis=1).iloc[0].values
+# print("Prediction:", predict_transaction(sample))
