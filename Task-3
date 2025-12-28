@@ -1,0 +1,114 @@
+# ---------------------------------------------------
+# CUSTOMER CHURN PREDICTION PROJECT
+# ---------------------------------------------------
+# Imagine you’re the manager of a subscription service.
+# Some customers stay, some leave (churn).
+# Our goal: use data to PREDICT who might leave,
+# so we can act early and keep them happy!
+# ---------------------------------------------------
+
+# Step 1: Import the tools we need
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+# ---------------------------------------------------
+# Step 2: Load the dataset
+# ---------------------------------------------------
+# Replace with your actual dataset file
+data = pd.read_csv("customer_data.csv")
+
+print("First look at the data:")
+print(data.head())
+
+# ---------------------------------------------------
+# Step 3: Prepare the data
+# ---------------------------------------------------
+# Target column = 'Churn' (1 = left, 0 = stayed)
+X = data.drop("Churn", axis=1)
+y = data["Churn"]
+
+# Convert words (categorical features) into numbers
+X = pd.get_dummies(X, drop_first=True)
+
+# Split into training (learn from past) and testing (check predictions)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+
+# Scale features for Logistic Regression (like normalizing exam scores before comparing)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# ---------------------------------------------------
+# Step 4: Train different models
+# ---------------------------------------------------
+# Logistic Regression = simple yes/no logic
+log_reg = LogisticRegression(max_iter=1000)
+log_reg.fit(X_train_scaled, y_train)
+y_pred_log = log_reg.predict(X_test_scaled)
+
+# Random Forest = a "forest" of decision trees voting together
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf.fit(X_train, y_train)
+y_pred_rf = rf.predict(X_test)
+
+# Gradient Boosting = a coach that learns from mistakes step by step
+gb = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
+gb.fit(X_train, y_train)
+y_pred_gb = gb.predict(X_test)
+
+# ---------------------------------------------------
+# Step 5: Evaluate the models
+# ---------------------------------------------------
+print("\nLogistic Regression Results:")
+print(classification_report(y_test, y_pred_log))
+print("Accuracy:", accuracy_score(y_test, y_pred_log))
+
+print("\nRandom Forest Results:")
+print(classification_report(y_test, y_pred_rf))
+print("Accuracy:", accuracy_score(y_test, y_pred_rf))
+
+print("\nGradient Boosting Results:")
+print(classification_report(y_test, y_pred_gb))
+print("Accuracy:", accuracy_score(y_test, y_pred_gb))
+
+# ---------------------------------------------------
+# Step 6: Feature Importance (which factors matter most?)
+# ---------------------------------------------------
+importances = rf.feature_importances_
+indices = np.argsort(importances)[::-1]
+
+plt.figure(figsize=(10,6))
+sns.barplot(x=importances[indices], y=X.columns[indices], palette="coolwarm")
+plt.title("Which features drive churn? (Random Forest)")
+plt.xlabel("Importance Score")
+plt.ylabel("Feature")
+plt.show()
+
+# ---------------------------------------------------
+# Step 7: Confusion Matrices (how many predictions were right/wrong?)
+# ---------------------------------------------------
+fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+for ax, model_name, y_pred in zip(
+    axes,
+    ["Logistic Regression", "Random Forest", "Gradient Boosting"],
+    [y_pred_log, y_pred_rf, y_pred_gb],
+):
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+    ax.set_title(f"{model_name} Confusion Matrix")
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("Actual")
+
+plt.tight_layout()
+plt.show()
