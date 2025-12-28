@@ -1,0 +1,65 @@
+# ---------------------------------------------------
+# HANDWRITTEN-LIKE TEXT GENERATION WITH CHAR-LEVEL RNN
+# ---------------------------------------------------
+# Goal: Train a character-level RNN (LSTM) on text data
+# and generate new text that mimics handwritten style.
+# ---------------------------------------------------
+
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Embedding
+from tensorflow.keras.optimizers import Adam
+
+# Step 1: Load dataset
+# Use a text file with handwritten-style notes (transcriptions).
+DATA_PATH = "handwritten_corpus.txt"
+with open(DATA_PATH, "r", encoding="utf-8") as f:
+    text = f.read()
+
+# Step 2: Build character index
+chars = sorted(list(set(text)))
+char_to_idx = {c: i for i, c in enumerate(chars)}
+idx_to_char = {i: c for i, c in enumerate(chars)}
+
+# Step 3: Create training sequences
+seq_len = 100
+inputs, targets = [], []
+for i in range(0, len(text) - seq_len):
+    seq = text[i:i+seq_len]
+    next_char = text[i+seq_len]
+    inputs.append([char_to_idx[c] for c in seq])
+    targets.append(char_to_idx[next_char])
+
+X = np.array(inputs)
+y = np.array(targets)
+
+# Step 4: Build the model
+model = Sequential([
+    Embedding(input_dim=len(chars), output_dim=64, input_length=seq_len),
+    LSTM(256),
+    Dense(len(chars), activation="softmax")
+])
+model.compile(optimizer=Adam(1e-3), loss="sparse_categorical_crossentropy")
+
+# Step 5: Train the model
+model.fit(X, y, batch_size=128, epochs=10, validation_split=0.05)
+
+# Step 6: Generate text
+def sample_next_char(preds, temperature=1.0):
+    preds = np.log(preds + 1e-9) / temperature
+    exp_preds = np.exp(preds)
+    preds = exp_preds / np.sum(exp_preds)
+    return np.random.choice(len(chars), p=preds)
+
+def generate_text(seed="Hello", length=300, temperature=0.8):
+    generated = seed
+    for _ in range(length):
+        x_input = np.array([[char_to_idx.get(c, 0) for c in generated[-seq_len:]]])
+        preds = model.predict(x_input, verbose=0)[0]
+        next_idx = sample_next_char(preds, temperature)
+        generated += idx_to_char[next_idx]
+    return generated
+
+print(generate_text("Dear Diary, today I learned", 400))
